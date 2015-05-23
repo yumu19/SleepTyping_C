@@ -2,6 +2,7 @@
 #include <usb.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/time.h>
 
 /*
 static unsigned char keycode[256] = {
@@ -96,21 +97,22 @@ void
 print_input(unsigned char *buf, uint16_t size, int dev_num)
 {
         int i;
+        time_t tm = time(NULL);
+        double tmd = (double)tm;
+        double usec;
+
+        struct timeval tv;
+        gettimeofday(&tv,NULL);
+        usec = (double)tv.tv_usec/1000000.0;
+
 
         if (size < 3) return;
         if (buf[2] == 0x01) return;
 
         for (i=2; i<size; i++) {
                 if (buf[i])
-                        //printf("\"%c\"(0x%02x) ", keycode[buf[i]], buf[i]);
-                        printf("%d,%d,%d,%d\n",(int)time(NULL),keyX[buf[i]],keyY[buf[i]],dev_num);
+                        printf("%lf,%d,%d,%d\n",tmd+usec,keyX[buf[i]],keyY[buf[i]],dev_num);
         }
-
-/*        printf("%s%s\n",
-               (buf[0] & 0x01) ? "[ctrl]":"",
-               (buf[0] & 0x02) ? "[shift]":""
-              );
-*/
 }
 
 int
