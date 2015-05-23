@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <usb.h>
 #include <errno.h>
+#include <time.h>
 
+/*
 static unsigned char keycode[256] = {
   ' ',' ',' ',' ','a','b','c','d','e','f','g','h','i','j','k','l',
   'm','n','o','p','q','r','s','t','u','v','w','x','y','z','1','2',
@@ -20,30 +22,31 @@ static unsigned char keycode[256] = {
   ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
   ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
 };
+*/
 
 void
-print_input(unsigned char *buf, uint16_t size)
+print_input(unsigned char *buf, uint16_t size, int dev_num)
 {
         int i;
 
         if (size < 3) return;
         if (buf[2] == 0x01) return;
 
-        printf("INPUT: ");
-        printf("size: %d",size);
         for (i=2; i<size; i++) {
                 if (buf[i])
-                        printf("\"%c\"(0x%02x) ", keycode[buf[i]], buf[i]);
+                        //printf("\"%c\"(0x%02x) ", keycode[buf[i]], buf[i]);
+                        printf("%d,%d,%d\n", (int)time(NULL), buf[i],dev_num);
         }
 
-        printf("%s%s\n",
+/*        printf("%s%s\n",
                (buf[0] & 0x01) ? "[ctrl]":"",
                (buf[0] & 0x02) ? "[shift]":""
               );
+*/
 }
 
 int
-usb_keyboard_test(struct usb_device *dev)
+usb_keyboard_test(struct usb_device *dev, int dev_num)
 {
         usb_dev_handle *handle;
         struct usb_config_descriptor *config = &dev->config[0];
@@ -80,19 +83,16 @@ usb_keyboard_test(struct usb_device *dev)
                 read_size = usb_interrupt_read(handle, ep, (char *)buf,
                                                endpoint->wMaxPacketSize, 1000);
 
-
-                if (read_size > 0) printf("printbuf: %c\n",buf[2]);
-
-                if (read_size < 0) {
+                /* if (read_size < 0) {
                         if (read_size == -ETIMEDOUT)
                                 printf("read timeout.\n");
                         else
                                 printf("read error: %zd\n", read_size);
-                }
+                } */
 
                 if (!ignore || buf[2])
 
-                        print_input(buf, endpoint->wMaxPacketSize);
+                        print_input(buf, endpoint->wMaxPacketSize, dev_num);
 
                 if (buf[2] != 0) {
                         ignore = 0;
@@ -100,8 +100,8 @@ usb_keyboard_test(struct usb_device *dev)
                 else {
                         ignore = 1;
                       }
-                if (buf[2] == 0x29)
-                        break;
+   //             if (buf[2] == 0x29)
+   //                     break;
         }
 
         usb_resetep(handle, ep);
@@ -125,10 +125,13 @@ usb_keyboard_test(struct usb_device *dev)
          return 0;
  }
 
- int main(void)
+ int main(int argc, char *argv[])
  {
          struct usb_bus *bus;
          struct usb_device *dev;
+
+         int dev_num = atoi(argv[1]);
+	 int count = 0;
 
          usb_init();
 
@@ -141,8 +144,11 @@ usb_keyboard_test(struct usb_device *dev)
                  for (dev = bus->devices; dev; dev = dev->next) {
                          if (dev->descriptor.idVendor != 0 || dev->descriptor.idProduct != 0) {
                                  if (check_keyboard(dev)) {
-                                         usb_keyboard_test(dev);
-                                         return 0;
+					if (count == dev_num) {
+                                            usb_keyboard_test(dev,dev_num);
+                                            return 0;
+					}
+					count++;
                                  }
                          }
                  }
